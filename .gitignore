@@ -1,0 +1,6 @@
+﻿*.log
+*.snapshot.json
+history\
+bin\
+obj\
+
