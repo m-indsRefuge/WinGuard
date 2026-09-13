@@ -46,16 +46,9 @@ function Get-NetworkExposureFindings {
             $isRisky = $riskyPorts.ContainsKey([int]$port)
             $isAnyInterface = ($addr -eq "0.0.0.0" -or $addr -eq "::")
 
-            # Only the known-risky port list elevates severity. Binding to
-            # all interfaces alone is completely normal for Windows system
-            # services (RPC, delivery optimization, device discovery, the
-            # ephemeral 49664-49686 range) - flagging every one of those
-            # as "warning" is exactly the alert-fatigue failure mode this
-            # whole design has been trying to avoid. A non-risky port
-            # bound anywhere is "info" regardless of interface.
             $severity =
                 if ($isRisky -and $isAnyInterface) { "critical" }
-                elseif ($isRisky) { "warning" }
+                elseif ($isRisky -or $isAnyInterface) { "warning" }
                 else { "info" }
 
             $label = if ($isRisky) { " ($($riskyPorts[[int]$port]))" } else { "" }

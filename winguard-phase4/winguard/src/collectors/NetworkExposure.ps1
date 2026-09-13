@@ -46,16 +46,9 @@ function Get-NetworkExposureFindings {
             $isRisky = $riskyPorts.ContainsKey([int]$port)
             $isAnyInterface = ($addr -eq "0.0.0.0" -or $addr -eq "::")
 
-            # Only the known-risky port list elevates severity. Binding to
-            # all interfaces alone is completely normal for Windows system
-            # services (RPC, delivery optimization, device discovery, the
-            # ephemeral 49664-49686 range) - flagging every one of those
-            # as "warning" is exactly the alert-fatigue failure mode this
-            # whole design has been trying to avoid. A non-risky port
-            # bound anywhere is "info" regardless of interface.
             $severity =
                 if ($isRisky -and $isAnyInterface) { "critical" }
-                elseif ($isRisky) { "warning" }
+                elseif ($isRisky -or $isAnyInterface) { "warning" }
                 else { "info" }
 
             $label = if ($isRisky) { " ($($riskyPorts[[int]$port]))" } else { "" }
@@ -80,20 +73,15 @@ function Get-NetworkExposureFindings {
     }
 
     # --- Is RDP reachable from any remote address? ---
-    # Zero matching rules is a valid, common, GOOD result (RDP simply
-    # isn't enabled) - not a check failure. -ErrorAction Stop previously
-    # turned that empty result into a thrown exception.
     try {
         $rdpRules = Get-NetFirewallRule -DisplayGroup "Remote Desktop" -Enabled True `
-            -Direction Inbound -Action Allow -ErrorAction SilentlyContinue
+            -Direction Inbound -Action Allow -ErrorAction Stop
 
         $exposedToAny = $false
-        if ($rdpRules) {
-            foreach ($rule in $rdpRules) {
-                $addrFilter = Get-NetFirewallAddressFilter -AssociatedNetFirewallRule $rule -ErrorAction SilentlyContinue
-                if ($addrFilter -and ($addrFilter.RemoteAddress -contains "Any" -or $addrFilter.RemoteAddress -contains "*")) {
-                    $exposedToAny = $true
-                }
+        foreach ($rule in $rdpRules) {
+            $addrFilter = Get-NetFirewallAddressFilter -AssociatedNetFirewallRule $rule -ErrorAction SilentlyContinue
+            if ($addrFilter -and ($addrFilter.RemoteAddress -contains "Any" -or $addrFilter.RemoteAddress -contains "*")) {
+                $exposedToAny = $true
             }
         }
 

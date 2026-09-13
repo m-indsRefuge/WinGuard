@@ -44,10 +44,6 @@ foreach ($collector in $collectors) {
 
     if (-not $previous) {
         Write-WinGuardLog "[$name] First run - no baseline yet. Recorded $($current.Count) findings."
-        $notable = $current | Where-Object { $_.Severity -in @("warning", "critical") }
-        foreach ($n in $notable) {
-            Write-WinGuardLog "  [$name] BASELINE $($n.Severity.ToUpper()): $($n.Id) = '$($n.Value)'"
-        }
     }
     elseif ($diff.HasDrift) {
         Write-WinGuardLog "[$name] Drift detected: $($diff.Added.Count) added, $($diff.Removed.Count) removed, $($diff.Changed.Count) changed."
