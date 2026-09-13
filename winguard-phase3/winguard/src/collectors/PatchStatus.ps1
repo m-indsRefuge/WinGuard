@@ -39,32 +39,14 @@ function Get-PatchStatusFindings {
     }
 
     # --- Days since the last hotfix actually installed ---
-    # Some hotfix entries have a malformed InstalledOn date in WMI that
-    # throws on property access rather than returning null - accessing
-    # each one in its own try/catch keeps one bad entry from surfacing an
-    # ugly uncaught error via Sort-Object's inline evaluation.
     try {
-        $hotfixes = Get-HotFix -ErrorAction Stop
-        $validDates = @()
-        foreach ($hf in $hotfixes) {
-            try {
-                if ($hf.InstalledOn) { $validDates += $hf.InstalledOn }
-            }
-            catch {
-                continue
-            }
-        }
-
-        if ($validDates.Count -gt 0) {
-            $lastInstall = $validDates | Sort-Object -Descending | Select-Object -First 1
-            $daysSince = [math]::Round(((Get-Date) - $lastInstall).TotalDays)
+        $lastPatch = Get-HotFix -ErrorAction Stop | Sort-Object InstalledOn -Descending | Select-Object -First 1
+        if ($lastPatch -and $lastPatch.InstalledOn) {
+            $daysSince = [math]::Round(((Get-Date) - $lastPatch.InstalledOn).TotalDays)
             $findings += [PSCustomObject]@{
                 Id = "Patch.DaysSinceLastInstall"; Value = $daysSince.ToString()
                 Severity = $(if ($daysSince -gt 35) { "warning" } else { "info" })
             }
-        }
-        else {
-            $findings += [PSCustomObject]@{ Id = "Patch.HotfixCheckFailed"; Value = "no hotfix entries had a parseable install date"; Severity = "info" }
         }
     }
     catch {
